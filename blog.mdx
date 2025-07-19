@@ -1,0 +1,302 @@
+## I Replaced a 20‑Minute Hold With Voice AI - Here’s How I Built a Car‑Rental Agent with Vapi
+
+Last week, I rented a car from a rental company. I rented it for a couple of days but wanted to extend the rental. Just to know what it'd cost me to extend the rental, I had to wait **20+ minutes** on the phone.
+
+I recently discovered [**Vapi**](https://vapi.ai/) that lets you build and deploy AI voice agents. so I thought why not build an agent to solve the very problem I faced. I'll be using the Python, but you can use JavaScript as well. You can access official Vapi docs on [**their** ](https://docs.vapi.ai/quickstart/introduction)[**website**](https://docs.vapi.ai/quickstart/introduction).
+
+### **We'll build a voice agent Elizabeth that:**
+
+* Verifies your rental agreement.
+* Looks up the reservation.
+* Tells you how much it'd cost you if you extended your rental.
+* Sounds just like a human and doesn't make you wait on the line.
+
+### **Logistics:**
+
+* Knowledge base: We'll use 2 CSV files containing user info and rental schedule as our source of knowledge.
+
+### **Pre-requisites:**
+
+1. Go to [dashboard.vapi.ai](https://dashboard.vapi.ai/) and sign up. No credit card required.
+2. On your computer, create an empty directory and spin up your favorite IDE. Make sure you have Python installed.
+3. Download these CSV files: `renters_info.csv` and `rental_schedule.csv`
+   Place both of these files in that empty directory.
+
+## Now let's start building the agent
+
+### **Bird's eye view of the agent:**
+
+1. You call the rental agency. The agent picks up the phone.
+2. The agent verifies your information either via the`rental_agreement_number`or both`age` and `phone_number`
+3. Once verified, the agent tells you basic info about your rental present in `rental_schedule.csv`
+4. Then it answers any questions about extending your rental, new quotes, etc.
+
+## Step 0: Get your API key
+
+* Head over to [dashboard.vapi.ai](https://dashboard.vapi.ai/). On the left sidebar, click **Vapi API Keys**. You now see two different types of keys. Copy the **Private Key**.
+  \<screenshot>
+* Go to your IDE and create a `.env` file. Paste the private key in the following format:
+
+```txt
+VAPI_API_KEY=<Your Private Key>
+```
+
+## Step 1: Upload the files to the VAPI that act as a knowledge source
+
+* Now the API keys are set, run the following command in your terminal to install the necessary modules:
+
+```txt
+pip install requests python-dotenv
+```
+
+* Create a new file called `app.py` and import the following dependencies.
+
+```txt
+import requests
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+HEADERS = {"Authorization": f"Bearer {os.environ['VAPI_API_KEY']}"}
+```
+
+* Build a class called `VapiAgent` and add the first function. All this function is doing is taking our two CSV files and sending them over to VAPI. VAPI will return file ids if the upload was successful.
+
+```txt
+class VapiAgent:
+    def __init__(self):
+        self.URL = "https://api.vapi.ai"
+
+    # Step 1: Upload the files to the VAPI as knowledge base
+    def upload_files(self, file_path):
+        """
+        Upload a file to the VAPI API for the AI agent to look up the data from.
+        Args:
+            file_path: The path to the file to upload
+        Returns:
+            The file ids of the uploaded files
+        """
+        
+        url = f"{self.URL}/file"
+        
+        with open(file_path, 'rb') as file:
+            files = {'file': file}
+            response = requests.post(url, headers=HEADERS, files=files)
+            return response.json()
+```
+
+## Step 2: Create the AI agent
+
+* Now, we're creating the AI agent - on this step, we'll configure things like system prompts, the first thing the agent says when the call connects, the LLM provider, and the voice configs.
+* Let's add another function to the class called `create_agent`. This function will create the agent in the VAPI services & return the assistant id.
+
+```txt
+    # Step 2: Create the AI agent
+    def create_agent(self):
+        """
+        Create an AI agent with the given name, first message, model, and voice.
+        Args:
+            name: The name of the agent
+            first_message: The first message the agent will send
+            model: The model to use for the agent
+            voice: The voice to use for the agent
+        Returns:
+            The id of the created agent
+        """
+
+        url = f"{self.URL}/assistant"
+        HEADERS["Content-Type"] = "application/json"
+        data = {
+            "name": "Elizabeth",
+            "firstMessage": FIRST_MESSAGE,
+            "model": {
+                "provider": "openai",
+                "model": "gpt-4o",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": SYSTEM_PROMPT
+                    }
+                ]
+            },
+            "voice": {
+                "provider": "vapi",
+                "voiceId": "Kylie"
+            }
+        }
+
+        response = requests.post(url, headers=HEADERS, json=data)
+        assistant = response.json()
+        return assistant['id']
+```
+
+* To keep things clean, we'll use a separate file to store all the prompts. In the same directory, create another file called `prompts.py` and add the following prompts:
+
+```txt
+SYSTEM_PROMPT = "You are Elizabeth, a sweet, friendly customer service agent working for Ultra Rental Service. Help customers check info on their car rentals. They may ask questions about when they rented, when is the car due, and if they were to extend their rental, how much would they have to pay. Always verify their identity by asking their rental agreement number. First ask for the rental agreement number only. If they don't have the rental agreement number, only then ask and verify using phone number and age."
+
+FIRST_MESSAGE = "Hello, this is Elizabeth! Thanks for calling Ultra Car Rental, how may I be of service today?"
+```
+
+* Now, import  the prompts at the top in`app.py`:
+
+```txt
+...
+from prompts import SYSTEM_PROMPT, FIRST_MESSAGE
+...
+```
+
+## Step 3: Add the custom tools to the agent
+
+* Tools are what make AI agents powerful because they allow agents to perform actions. For our use case, we need 3 tools:
+  * Account lookup tool: Verifies if the user has rental or not.
+  * Rental start and end tool: Checks when the user's rental starts and ends.
+  * Extended cost tool: Lets the agent calculate the costs for extended rentals.
+* In your `VapiAgent`class, add the following. The following logic creates tools in the VAPI system & returns the tool ids.
+
+```txt
+    # Step 3: Add the custom tools to the agent
+    def create_tool(self, name, description, knowledge_bases):
+        url = f"{self.URL}/tool"
+        HEADERS["Content-Type"] = "application/json"
+        
+        data = {
+            "type": "query",
+            "function": {
+                "name": name,
+                "description": description
+            },
+            "knowledgeBases": knowledge_bases
+        }
+        
+        response = requests.post(url, headers=HEADERS, json=data)
+        return response.json()
+    
+
+    def create_tools(self, renters_info_file_id, rental_schedule_file_id):
+        """
+        Create the tools for the agent.
+        Args:
+            renters_info_file_id: The id of the renters info file
+            rental_schedule_file_id: The id of the rental schedule file
+        Returns:
+            The ids of the created tools
+        """
+
+        tool_ids = []
+
+        # A: Create the account lookup tool
+        account_lookup_tool = self.create_tool(
+        "account_lookup",
+        ACCOUNT_LOOKUP_TOOL_PROMPT,
+        [{"provider": "google", "name": "renters_info", "description": "Use this to retrieve account information", "fileIds": [renters_info_file_id]}]
+    )
+
+        #B: Create the get rental start and end tool
+        get_rental_start_and_end_tool = self.create_tool(
+        "get_rental_start_and_end",
+        RENTAL_START_AND_END_TOOL_PROMPT,
+        [
+            {"provider": "google", "name": "renters_info info", "description": "Use this to retrieve account information", "fileIds": [renters_info_file_id]},
+            {"provider": "google", "name": "rental_schedule", "description": "Use this to retrieve transactions", "fileIds": [rental_schedule_file_id]}
+        ]
+    )
+        #C: Create the get extended cost tool
+        get_extended_cost_tool = self.create_tool(
+        "get_extended_cost", 
+        GET_EXTENDED_COST_TOOL_PROMPT,
+        [
+            {"provider": "google", "name": "renters_info info", "description": "Use this to retrieve account information", "fileIds": [renters_info_file_id]},
+            {"provider": "google", "name": "rental_schedule", "description": "Use this to retrieve transactions", "fileIds": [rental_schedule_file_id]}
+        ]
+    )
+        tool_ids = [account_lookup_tool['id'], get_rental_start_and_end_tool['id'], get_extended_cost_tool['id']]
+        return tool_ids
+```
+
+* In your `prompts.py`, add the new prompts:
+
+```txt
+...
+
+ACCOUNT_LOOKUP_TOOL_PROMPT = "Look up account based on [provided name and rental agreement number] or [provided name, phone_number, and age]"
+
+RENTAL_START_AND_END_TOOL_PROMPT = "Return the rental start and end date, alongside the total cost for the specific rental_agreement_number"
+
+GET_EXTENDED_COST_TOOL_PROMPT = "Return the total cost of the rental if the user wants to extend the rental. Take into consideration the regular rates, the extended rates, rental start date, original end date, and the new end date."
+```
+
+* And update your imports in `app.py`:
+
+```txt
+...
+from prompts import SYSTEM_PROMPT, FIRST_MESSAGE, ACCOUNT_LOOKUP_TOOL_PROMPT, RENTAL_START_AND_END_TOOL_PROMPT, GET_EXTENDED_COST_TOOL_PROMPT
+...
+```
+
+## Step 4: Fire it all up 🔥
+
+* In your `app.py`, outside of your `VapiAgent` class, put the following and run the file using `python app.py`. Here, we're just calling the functions we created.
+
+```txt
+agent = VapiAgent()
+
+# Step 1: Upload the files to the VAPI API as knowledge base
+try:
+    renters_info_file_id = agent.upload_files("renters_info.csv")['id']
+    rental_schedule_file_id = agent.upload_files("rental_schedule.csv")['id']
+    print("--------------------------------")
+    print("Step 1: Files successfully uploaded")
+    print(f"renters_info_file_id: {renters_info_file_id}")
+    print(f"rental_schedule_file_id: {rental_schedule_file_id}")
+    print("--------------------------------")
+except Exception as e:
+    print(f"Error uploading files: {e}")
+    exit(1)
+
+# Step 2: create the agent
+try:
+    assistant_id = agent.create_agent()
+    print("--------------------------------")
+    print("Step 2: Agent created")
+    print(f"assistant_id: {assistant_id}")
+    print("--------------------------------")
+except Exception as e:
+    print(f"Error creating agent: {e}")
+    exit(1)
+
+# Step 3: create tools and get the tool ids
+try:
+    tool_ids = agent.create_tools(renters_info_file_id, rental_schedule_file_id)
+    print("--------------------------------")
+    print("Step 3: Tools created")
+    print(f"tool_ids: {tool_ids}")
+    print("--------------------------------")
+except Exception as e:
+    print(f"Error creating tools: {e}")
+    exit(1)
+```
+
+## Step 5: Putting it all together
+
+* You're 95% done - all we need to do now is attach the tools to the agent and test it out.
+* Head over to [dashboard.vapi.ai/assistants](https://dashboard.vapi.ai/assistants). You should now see an agent called **Elizabeth.** Click on the agent.
+  * Under **Model**, scroll down until you see **Tools**.
+  * Click the drop down and click **Select All**.
+  * Publish the agent by pressing the button on top right-hand corner.
+* Congratulations 🥳 - you've build your very own voice agent.
+* To try it out, click **Talk to assistant**.
+  * Example scenario you can try:
+    **Name:** Morgan Miller
+    **Rental Agreement Number:** 163567
+    **Phone:** 555-299-9530
+    **Age:** 27
+  * You wanna extend your rental by two more days. The agent should tell you that extension would cost $57 per day. So for two days, it would be $114.
+    And your total for the rental should be $32 (original rate for 1 day) + $114 (extension) = $146.
+
+## (Bonus): Attach a phone number to your agent
+
+* Head over to [dashboard.vapi.ai/phone-numbers](https://dashboard.vapi.ai/phone-numbers). Create a phone number.
+* Once activated, click on the phone number and scroll down to **Outbound Settings**.&#x20;
+* Under outbound phone number, type in your phone number and select Elizabeth as your assistant.
+* Click **Make a call** and the agent will call you on your number.
