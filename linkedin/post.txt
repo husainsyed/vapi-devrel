@@ -1,0 +1,26 @@
+This VAPI voice agent replaces customer support calls for car rental agencies. Meet Elizabeth, the AI agent.
+
+What Elizabeth does every call:
+1️⃣ Verifies your rental agreement
+2️⃣ Looks up the reservation
+3️⃣ Tells you how much it'd cost you if you extended your rental
+
+Why it actually works:
+🟦 Extremely low latency (instant replies, zero lag)
+🟦 Understands all about the rental agreements (start date, end date, costs, etc)
+🟦 Sounds just like a human and doesn't make you wait on the line
+🟦 Rich documentation and logging on Vapi's dashboard
+🟦 Free to try (no credit card required)
+
+I’m sharing:
+ → Step-by-step tutorial
+ → Video tutorial
+ → My Python code
+
+The best part, didn't take me more than 2 hours to code and deploy.
+
+
+To get it:
+1. We need to be connected
+2. Like this post
+3. Comment “VAPI” and I’ll send you all materials

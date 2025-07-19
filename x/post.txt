@@ -1,0 +1,24 @@
+This AI Voice Agent is Replacing Car Rental Support Calls 🚗
+
+Meet Elizabeth, a VAPI-powered AI agent that handles car rental calls. Here’s what she does 👇
+
+> Verifies your rental agreement in seconds
+> Checks reservation details instantly
+> Quotes rental extension costs on the spot
+
+
+Why it’s a game-changer
+🟩 Extremely low latency (instant replies, zero lag)
+🟩 Understands all about the rental agreements (start date, end date, costs, etc)
+🟩 Sounds just like a human and doesn't make you wait on the line
+🟩 Rich documentation and logging on Vapi's dashboard
+🟩 Free to try (no credit card required)
+
+
+I built & deployed Elizabeth in just 2 hours using VAPI, OpenAI, and Python! I’m sharing:
+ → Step-by-step tutorial
+ → Video walkthrough
+ → My Python code
+
+
+Head over to vapi.com/exampleblog and build your own voice agent today.
