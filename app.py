@@ -175,9 +175,3 @@ try:
 except Exception as e:
     print(f"Error creating tools: {e}")
     exit(1)
-
-# Step 4: add the tools to the agent
-# agent.update_assistant_with_tools(assistant_id, tool_ids)
-# print("--------------------------------")
-# print("Step 4: Tools added to agent")
-# print("--------------------------------")
