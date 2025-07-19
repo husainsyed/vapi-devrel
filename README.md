@@ -37,3 +37,7 @@ python app.py
 
 - `renters_info.csv`: Customer information (name, phone, rental agreement number, age)
 - `rental_schedule.csv`: Rental details (dates, costs, extension rates)
+
+## Video Demonstration
+
+Watch the full tutorial and demonstration: https://www.youtube.com/watch?v=RaLstFJtXZE

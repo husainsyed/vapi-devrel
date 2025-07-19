@@ -122,21 +122,7 @@ class VapiAgent:
     )
         tool_ids = [account_lookup_tool['id'], get_rental_start_and_end_tool['id'], get_extended_cost_tool['id']]
         return tool_ids
-    
 
-    # Step 4: add the tools to the agent
-    def update_assistant_with_tools(self, assistant_id, tool_ids):
-        url = f"{self.URL}/assistant/{assistant_id}"
-        HEADERS["Content-Type"] = "application/json"
-        
-        data = {
-            "model": {
-                "toolIds": tool_ids
-            }
-        }
-        
-        response = requests.patch(url, headers=HEADERS, json=data)
-        return response.json()
     
 
 agent = VapiAgent()
