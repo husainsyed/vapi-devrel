@@ -38,6 +38,12 @@ python app.py
 - `renters_info.csv`: Customer information (name, phone, rental agreement number, age)
 - `rental_schedule.csv`: Rental details (dates, costs, extension rates)
 
+## Blog and Media 
+
+- `blog.mdx`: The blog - how the demo works, what they can learn from it.
+- `linkedin`: Folder containing LinkedIn post and graphic
+- `x`: Folder containing X post and graphic
+
 ## Video Demonstration
 
 Watch the full tutorial and demonstration: https://www.youtube.com/watch?v=RaLstFJtXZE
